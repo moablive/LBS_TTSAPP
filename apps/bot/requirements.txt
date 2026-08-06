@@ -1,0 +1,7 @@
+# aiogram 3.7+ é o piso: DefaultBotProperties (usado no main) substituiu o
+# parse_mode no construtor do Bot, que foi removido nessa versão.
+aiogram>=3.13,<4
+edge-tts>=7.0.0
+aiohttp>=3.9.0
+python-dotenv>=1.0.0
+pypdf>=4.2.0

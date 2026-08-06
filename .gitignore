@@ -1,0 +1,24 @@
+# Segredos
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Runtime
+tmp/
+data/
+*.mp3
+*.log
+*.pid
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

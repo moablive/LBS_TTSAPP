@@ -1,0 +1,57 @@
+# =============================================================================
+# LBSTTSAPP (LumoTranslate) — Backend Node.js, Frontend Vue 3 PWA e Bot Telegram.
+#
+# Não sobe banco nem Ollama: usa o server_ollama já existente pela rede externa
+# compartilhada `awl_network`, igual ao resto da suite.
+#
+# Subir:
+#   docker compose --env-file ../shared.env --env-file .env up -d --build
+# =============================================================================
+
+services:
+  lbs_ttsapp_backend:
+    build:
+      context: apps/backend
+    container_name: lbs_ttsapp_backend
+    env_file:
+      - ../shared.env
+      - .env
+    networks:
+      awl_network:
+        aliases:
+          - lbs_ttsapp_backend
+    restart: unless-stopped
+
+  lbs_ttsapp_frontend:
+    build:
+      context: apps/frontend
+    container_name: lbs_ttsapp_frontend
+    depends_on:
+      - lbs_ttsapp_backend
+    ports:
+      - "5173:80"
+    networks:
+      awl_network:
+        aliases:
+          - lbs_ttsapp_frontend
+    restart: unless-stopped
+
+  lbs_ttsapp_bot:
+    build:
+      context: apps/bot
+    container_name: lbs_ttsapp_bot
+    env_file:
+      - ../shared.env
+      - .env
+    volumes:
+      # Preferências de idioma/voz/velocidade sobrevivem ao redeploy.
+      - ./data:/app/data
+    networks:
+      awl_network:
+        aliases:
+          - lbs_ttsapp_bot
+    restart: unless-stopped
+
+networks:
+  awl_network:
+    external: true
