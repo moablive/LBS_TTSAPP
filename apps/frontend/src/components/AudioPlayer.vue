@@ -99,7 +99,7 @@ function downloadCurrentAudio() {
   if (audioUrl.value) {
     const a = document.createElement('a');
     a.href = audioUrl.value;
-    a.download = `lumotranslate_secao_${currentIndex.value + 1}.mp3`;
+    a.download = `lbsttsapp_secao_${currentIndex.value + 1}.mp3`;
     a.click();
   }
 }

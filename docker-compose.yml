@@ -1,5 +1,5 @@
 # =============================================================================
-# LBSTTSAPP (LumoTranslate) — Backend Node.js, Frontend Vue 3 PWA e Bot Telegram.
+# LBSTTSAPP (LBSTTSAPP) — Backend Node.js, Frontend Vue 3 PWA e Bot Telegram.
 #
 # Não sobe banco nem Ollama: usa o server_ollama já existente pela rede externa
 # compartilhada `awl_network`, igual ao resto da suite.
@@ -16,6 +16,12 @@ services:
     env_file:
       - ../shared.env
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     networks:
       awl_network:
         aliases:
@@ -25,9 +31,13 @@ services:
   lbs_ttsapp_frontend:
     build:
       context: apps/frontend
+      args:
+        VITE_LOGINHUB_API_URL: ${VITE_LOGINHUB_API_URL}
+        VITE_LOGINHUB_APP_ID: ${VITE_LOGINHUB_APP_ID}
     container_name: lbs_ttsapp_frontend
     depends_on:
-      - lbs_ttsapp_backend
+      lbs_ttsapp_backend:
+        condition: service_healthy
     ports:
       - "5173:80"
     networks:

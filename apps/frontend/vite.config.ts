@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg", "logo.png"],
       manifest: {
-        name: "LumoTranslate — LBSTTSAPP",
-        short_name: "LumoTranslate",
+        name: "LBSTTSAPP — LBSTTSAPP",
+        short_name: "LBSTTSAPP",
         description: "Tradução de textos, PDFs e fotos com leitura em voz alta neural e navegação por seções.",
         theme_color: "#0f172a",
         background_color: "#0f172a",

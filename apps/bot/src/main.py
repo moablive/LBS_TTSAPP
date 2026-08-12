@@ -1,5 +1,5 @@
 """
-LumoTranslate — bot do Telegram que recebe texto, imagem ou PDF, traduz para o
+LBSTTSAPP — bot do Telegram que recebe texto, imagem ou PDF, traduz para o
 idioma preferido do usuário e devolve a leitura em áudio.
 
 Entrada -> extração -> detecção de idioma -> tradução -> seções -> TTS.
@@ -30,7 +30,7 @@ from .reader import Section
 from .state import Session, store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("lumotranslate")
+logger = logging.getLogger("lbsttsapp")
 
 if not config.TOKEN:
     raise SystemExit("TELEGRAM_BOT_TOKEN ausente — confira o .env do LBSTTSAPP.")
@@ -112,7 +112,7 @@ async def send_audio(
             chat_id,
             FSInputFile(path, filename="leitura.mp3"),
             title=title[:64] or "Leitura",
-            performer="LumoTranslate",
+            performer="LBSTTSAPP",
         )
         return True
     except Exception as exc:                       # noqa: BLE001
@@ -245,7 +245,7 @@ def _rebuild(sections: List[Section], translated: List[str]) -> List[Section]:
 
 
 # ── Comandos ────────────────────────────────────────────────────────────────
-HELP = """<b>LumoTranslate</b> — traduz e lê em voz alta.
+HELP = """<b>LBSTTSAPP</b> — traduz e lê em voz alta.
 
 <b>Mande para mim:</b>
 • Texto em qualquer idioma
@@ -275,7 +275,7 @@ async def cmd_start(message: types.Message) -> None:
     prefs = store.prefs(message.from_user.id)
     lang = get_lang(prefs.target_lang)
     await message.answer(
-        f"👋 Olá! Sou o <b>LumoTranslate</b>.\n\n"
+        f"👋 Olá! Sou o <b>LBSTTSAPP</b>.\n\n"
         f"Mande texto, foto ou PDF que eu traduzo para {lang.flag} <b>{esc(lang.name)}</b> "
         f"e leio em voz alta.\n\n"
         f"Use /ajuda para ver tudo que eu faço.",
@@ -615,7 +615,7 @@ async def main() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     logger.info(
-        "LumoTranslate subindo · ollama=%s texto=%s visão=%s · alvo padrão=%s · acesso=%s",
+        "LBSTTSAPP subindo · ollama=%s texto=%s visão=%s · alvo padrão=%s · acesso=%s",
         config.OLLAMA_URL,
         config.OLLAMA_TEXT_MODEL,
         config.OLLAMA_VISION_MODEL,

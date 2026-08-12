@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { Volume2, Settings, Download } from 'lucide-vue-next';
+import { Volume2, Settings, Download, LogOut } from 'lucide-vue-next';
+import { useAuthStore } from '../stores/auth';
 
 defineEmits(['open-settings']);
+const authStore = useAuthStore();
 
 const deferredPrompt = ref<any>(null);
 const isInstallable = ref(false);
@@ -36,7 +38,7 @@ async function installPwa() {
         </div>
         <div>
           <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            LumoTranslate
+            LBSTTSAPP
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">PWA</span>
           </h1>
           <p class="text-xs text-slate-400">Leitor & Tradutor Neural por Voz</p>
@@ -60,6 +62,15 @@ async function installPwa() {
         >
           <Settings class="w-4 h-4 text-sky-400" />
           <span class="hidden sm:inline">Preferências</span>
+        </button>
+
+        <button
+          v-if="authStore.isAuthenticated"
+          @click="authStore.logout()"
+          class="flex items-center gap-2 text-xs font-medium text-rose-300 hover:text-white bg-slate-800 hover:bg-rose-600/20 border border-slate-700 px-3.5 py-2 rounded-lg transition-colors"
+          title="Sair"
+        >
+          <LogOut class="w-4 h-4 text-rose-400" />
         </button>
       </div>
     </div>

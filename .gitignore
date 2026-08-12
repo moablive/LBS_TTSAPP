@@ -22,3 +22,8 @@ venv/
 .idea/
 .vscode/
 *.swp
+
+# Node / JS Build
+node_modules/
+dist/
+build/

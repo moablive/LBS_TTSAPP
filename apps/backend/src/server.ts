@@ -26,8 +26,10 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", app: "LBSTTSAPP Backend", timestamp: new Date().toISOString() });
 });
 
+import { authMiddleware } from "./middlewares/auth.middleware.js";
+
 // API Routes
-app.use("/api/v1/translate", translateRouter);
+app.use("/api/v1/translate", authMiddleware, translateRouter);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

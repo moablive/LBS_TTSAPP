@@ -2,8 +2,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
+ARG VITE_LOGINHUB_API_URL
+ENV VITE_LOGINHUB_API_URL=$VITE_LOGINHUB_API_URL
+ARG VITE_LOGINHUB_APP_ID
+ENV VITE_LOGINHUB_APP_ID=$VITE_LOGINHUB_APP_ID
 RUN npm run build
 
 FROM nginx:alpine
