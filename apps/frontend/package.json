@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@loginhub/schema": "file:/mnt/docker-services/server/dashboard/packages/schema/loginhub-schema-1.0.0.tgz",
+    "@loginhub/api-client": "file:/mnt/docker-services/server/dashboard/packages/api-client/loginhub-api-client-1.0.0.tgz",
     "@vueuse/core": "^10.9.0",
     "axios": "^1.19.0",
     "lucide-vue-next": "^0.395.0",

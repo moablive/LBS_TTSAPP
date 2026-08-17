@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia';
+import { authApi } from '@loginhub/api-client';
 
 // @ts-ignore
-const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'http://localhost:3000/api';
+const LOGINHUB_APP_ID = String(Number(import.meta.env.VITE_LOGINHUB_APP_ID) || 13);
 // @ts-ignore
-const LOGINHUB_APP_ID = Number(import.meta.env.VITE_LOGINHUB_APP_ID) || 13;
+const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'http://localhost:3000/api';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem('token') || null,
+    token: localStorage.getItem('awl_token') || null,
     requirePasswordChange: localStorage.getItem('requirePasswordChange') === 'true',
   }),
   getters: {
@@ -15,53 +16,33 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     async login(payload: { email: string; password?: string; access_token?: string }) {
-      const body = { ...payload, app_id: LOGINHUB_APP_ID };
-      const res = await fetch(`${LOGINHUB_API}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro de autenticação');
+      if (payload.access_token) {
+        localStorage.setItem('awl_token', payload.access_token);
+        this.token = payload.access_token;
+        return;
       }
-
-      const data = await res.json();
       
-      this.token = data.token;
-      this.requirePasswordChange = !!data.requirePasswordChange;
-
-      localStorage.setItem('token', data.token);
+      const result = await authApi.login(payload.email, payload.password || '', LOGINHUB_APP_ID);
+      
+      this.token = localStorage.getItem('awl_token');
+      this.requirePasswordChange = !!result.requirePasswordChange;
       localStorage.setItem('requirePasswordChange', String(this.requirePasswordChange));
     },
     
     async refreshToken(): Promise<boolean> {
-      if (!this.token) return false;
-      try {
-        const res = await fetch(`${LOGINHUB_API}/auth/refresh`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${this.token}` },
-        });
-        if (!res.ok) return false;
-
-        const data = await res.json();
-        if (!data.token) return false;
-
-        this.token = data.token;
-        localStorage.setItem('token', data.token);
+      const res = await authApi.refresh();
+      if (res) {
+        this.token = res.token;
         return true;
-      } catch {
-        return false;
       }
+      return false;
     },
     
     logout() {
+      authApi.logout();
       this.token = null;
       this.requirePasswordChange = false;
-      localStorage.removeItem('token');
       localStorage.removeItem('requirePasswordChange');
-      window.location.href = '/login';
     },
 
     async setupPassword(token: string, novaSenha: string) {

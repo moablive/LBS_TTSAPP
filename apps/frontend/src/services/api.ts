@@ -1,13 +1,11 @@
 import { Language, SpeedOption, TranslationResult } from "../types";
+import { api } from "@loginhub/api-client";
 
 const API_BASE = "/api/v1/translate";
 
 export async function fetchLanguages(): Promise<{ languages: Language[]; speeds: SpeedOption[] }> {
-  const token = localStorage.getItem("token");
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-  const res = await fetch(`${API_BASE}/languages`, { headers });
-  if (!res.ok) throw new Error("Falha ao buscar idiomas.");
-  return res.json();
+  const { data } = await api.get(`${API_BASE}/languages`);
+  return data;
 }
 
 export async function processTranslation(options: {
@@ -28,21 +26,16 @@ export async function processTranslation(options: {
   formData.append("gender", options.gender);
   formData.append("speed", options.speed);
 
-  const token = localStorage.getItem("token");
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-
-  const res = await fetch(`${API_BASE}/process`, {
-    method: "POST",
-    headers,
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Erro ao processar tradução.");
+  try {
+    const { data } = await api.post(`${API_BASE}/process`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    return data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || "Erro ao processar tradução.");
   }
-
-  return res.json();
 }
 
 export async function fetchSectionTtsAudio(
@@ -50,21 +43,13 @@ export async function fetchSectionTtsAudio(
   voice: string,
   speed: string
 ): Promise<Blob> {
-  const token = localStorage.getItem("token");
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${API_BASE}/tts-section`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ text: spokenText, voice, speed }),
-  });
-
-  if (!res.ok) {
+  try {
+    const { data } = await api.post(`${API_BASE}/tts-section`, 
+      { text: spokenText, voice, speed },
+      { responseType: 'blob' }
+    );
+    return data;
+  } catch (error: any) {
     throw new Error("Erro ao gerar áudio TTS para esta seção.");
   }
-
-  return res.blob();
 }
