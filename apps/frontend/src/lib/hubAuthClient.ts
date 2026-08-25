@@ -87,13 +87,18 @@ export interface TwoFactorStatusData {
 
 /** Erro com o código estável do hub (`CODIGO_INVALIDO`, `MUITAS_TENTATIVAS`...). */
 export class HubApiError extends Error {
-    constructor(
-        public readonly status: number,
-        public readonly code: string,
-        message: string,
-    ) {
+    // Campos declarados e atribuidos no corpo, e nao como parameter properties
+    // (`constructor(public readonly status: number)`): `erasableSyntaxOnly`,
+    // ligado em parte dos apps, recusa essa sintaxe. Este arquivo e copiado
+    // para todos eles, entao vale o denominador comum.
+    readonly status: number;
+    readonly code: string;
+
+    constructor(status: number, code: string, message: string) {
         super(message);
         this.name = 'HubApiError';
+        this.status = status;
+        this.code = code;
     }
 }
 

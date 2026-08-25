@@ -43,13 +43,17 @@ export interface HubSession {
 
 /** Erro com status HTTP e código estável — a mensagem pode mudar, o código não. */
 export class HubAuthError extends Error {
-    constructor(
-        public readonly status: number,
-        public readonly code: string,
-        message: string,
-    ) {
+    // Campos declarados e atribuidos no corpo, e nao como parameter properties:
+    // `erasableSyntaxOnly`, ligado em parte dos apps, recusa essa sintaxe. Este
+    // arquivo e copiado para todos eles, entao vale o denominador comum.
+    readonly status: number;
+    readonly code: string;
+
+    constructor(status: number, code: string, message: string) {
         super(message);
         this.name = 'HubAuthError';
+        this.status = status;
+        this.code = code;
     }
 }
 
