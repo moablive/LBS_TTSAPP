@@ -16,6 +16,10 @@ services:
     env_file:
       - ../shared.env
       - .env
+    environment:
+      # Montado a partir do DB_DSN (../shared.env) + DB_NAME (.env), como nos
+      # demais apps. O banco entrou para guardar o vinculo telegram->loginhub.
+      DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
       interval: 10s
@@ -53,6 +57,10 @@ services:
     env_file:
       - ../shared.env
       - .env
+    environment:
+      # Montado a partir do DB_DSN (../shared.env) + DB_NAME (.env), como nos
+      # demais apps. O banco entrou para guardar o vinculo telegram->loginhub.
+      DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
     volumes:
       # Preferências de idioma/voz/velocidade sobrevivem ao redeploy.
       - ./data:/app/data

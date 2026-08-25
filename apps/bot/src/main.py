@@ -24,7 +24,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from . import ai, config, extract, reader, tts
+from . import ai, config, extract, reader, tts, vinculo
 from .languages import GENDERS, LANGUAGES, SPEEDS, get as get_lang, iso_name, rate_for, speed_label
 from .reader import Section
 from .state import Session, store
@@ -48,10 +48,31 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
-def allowed(user_id: Optional[int]) -> bool:
-    if not config.ALLOWED_USER_IDS:
+async def allowed(user_id: Optional[int]) -> bool:
+    """Quem pode falar com o bot.
+
+    A fonte de verdade e o LoginHUB: vale quem tem a conta vinculada (ver
+    `vinculo.py`). O `ALLOWED_USER_IDS` sobrevive como escotilha de emergencia —
+    se estiver preenchido, aqueles IDs entram mesmo sem vinculo, o que salva o
+    dia se o backend cair. Vazio = so o hub decide.
+    """
+    if user_id is None:
+        return False
+    if user_id in config.ALLOWED_USER_IDS:
         return True
-    return user_id in config.ALLOWED_USER_IDS
+    return await vinculo.loginhub_id(user_id) is not None
+
+
+async def pedir_vinculo(message: types.Message) -> None:
+    """Explica como entrar. Sem pedir senha: ela nao passa por aqui."""
+    await message.answer(
+        "\U0001F512 <b>Este bot precisa da sua conta do LBSTTSAPP.</b>\n\n"
+        "Abra <b>https://lbstts.astralwavelabel.com</b> no navegador, entre na sua "
+        "conta e use <b>Vincular Telegram</b>. O link que aparecer abre esta conversa "
+        "e conclui sozinho.\n\n"
+        "<i>Senha e codigo do autenticador nunca sao digitados aqui \u2014 ficariam no "
+        "historico do Telegram.</i>"
+    )
 
 
 def esc(text: str) -> str:
@@ -270,8 +291,31 @@ Para pausar, use o próprio player do Telegram no áudio."""
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    # Vinculo hibrido: `/start <passe>` vindo do deep link emitido no app. Vem
+    # ANTES do `allowed` de proposito — quem chega assim ainda nao tem vinculo,
+    # e e exatamente o que veio criar.
+    partes = (message.text or "").split(maxsplit=1)
+    if len(partes) == 2 and partes[1].strip():
+        dono = await vinculo.consumir_passe(partes[1].strip(), message.from_user.id)
+        # O passe some do chat: ja morreu no consumo, mas deixa-lo a vista
+        # convida a reenviar e a receber "nao vale mais" sem entender por que.
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        if dono is None:
+            return await message.answer(
+                "\u274C <b>Este link de vinculo nao vale mais.</b>\n\n"
+                "Ele serve uma vez so e expira em 10 minutos. Gere outro no app, "
+                "em <b>Vincular Telegram</b>."
+            )
+        await message.answer(
+            f"\u2705 <b>Telegram vinculado!</b>\n\n"
+            f"Sua conta do LBSTTSAPP (#{dono}) agora fala com este chat."
+        )
+
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     prefs = store.prefs(message.from_user.id)
     lang = get_lang(prefs.target_lang)
     await message.answer(
@@ -285,15 +329,15 @@ async def cmd_start(message: types.Message) -> None:
 
 @dp.message(Command("ajuda", "help"))
 async def cmd_help(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     await message.answer(HELP, reply_markup=MAIN_KEYBOARD)
 
 
 @dp.message(Command("config"))
 async def cmd_config(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     prefs = store.prefs(message.from_user.id)
     lang = get_lang(prefs.target_lang)
     session = store.session(message.from_user.id)
@@ -311,8 +355,8 @@ async def cmd_config(message: types.Message) -> None:
 @dp.message(Command("idioma"))
 @dp.message(F.text == BTN_LANG)
 async def cmd_idioma(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     current = store.prefs(message.from_user.id).target_lang
     rows, row = [], []
     for code, lang in LANGUAGES.items():
@@ -331,8 +375,8 @@ async def cmd_idioma(message: types.Message) -> None:
 @dp.message(Command("voz"))
 @dp.message(F.text == BTN_VOICE)
 async def cmd_voz(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     prefs = store.prefs(message.from_user.id)
     lang = get_lang(prefs.target_lang)
     rows = [
@@ -352,8 +396,8 @@ async def cmd_voz(message: types.Message) -> None:
 @dp.message(Command("velocidade"))
 @dp.message(F.text == BTN_SPEED)
 async def cmd_velocidade(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     current = store.prefs(message.from_user.id).speed
     rows = [
         [
@@ -368,8 +412,8 @@ async def cmd_velocidade(message: types.Message) -> None:
 
 @dp.message(Command("indice"))
 async def cmd_indice(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     session = store.session(message.from_user.id)
     if not session:
         await message.answer("Nenhum documento aberto. Mande um texto, foto ou PDF primeiro.")
@@ -381,8 +425,8 @@ async def cmd_indice(message: types.Message) -> None:
 
 @dp.message(Command("secao"))
 async def cmd_secao(message: types.Message, command: CommandObject) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     session = store.session(message.from_user.id)
     if not session:
         await message.answer("Nenhum documento aberto.")
@@ -403,15 +447,15 @@ async def cmd_secao(message: types.Message, command: CommandObject) -> None:
 
 @dp.message(Command("tudo"))
 async def cmd_tudo(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     await read_everything(message.chat.id, message.from_user.id)
 
 
 @dp.message(Command("original"))
 async def cmd_original(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     session = store.session(message.from_user.id)
     if not session or not session.original:
         await message.answer("Nenhum documento aberto.")
@@ -437,7 +481,7 @@ async def read_everything(chat_id: int, user_id: int) -> None:
 # ── Callbacks ───────────────────────────────────────────────────────────────
 @dp.callback_query(F.data.startswith("lang:"))
 async def cb_lang(callback: types.CallbackQuery) -> None:
-    if not allowed(callback.from_user.id):
+    if not await allowed(callback.from_user.id):
         await callback.answer("Não autorizado.", show_alert=True)
         return
     code = callback.data.split(":", 1)[1]
@@ -452,7 +496,7 @@ async def cb_lang(callback: types.CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("gender:"))
 async def cb_gender(callback: types.CallbackQuery) -> None:
-    if not allowed(callback.from_user.id):
+    if not await allowed(callback.from_user.id):
         await callback.answer("Não autorizado.", show_alert=True)
         return
     gender = callback.data.split(":", 1)[1]
@@ -469,7 +513,7 @@ async def cb_gender(callback: types.CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("speed:"))
 async def cb_speed(callback: types.CallbackQuery) -> None:
-    if not allowed(callback.from_user.id):
+    if not await allowed(callback.from_user.id):
         await callback.answer("Não autorizado.", show_alert=True)
         return
     speed = callback.data.split(":", 1)[1]
@@ -484,7 +528,7 @@ async def cb_speed(callback: types.CallbackQuery) -> None:
 @dp.callback_query(F.data.startswith("nav:"))
 async def cb_nav(callback: types.CallbackQuery) -> None:
     user_id = callback.from_user.id
-    if not allowed(user_id):
+    if not await allowed(user_id):
         await callback.answer("Não autorizado.", show_alert=True)
         return
 
@@ -523,8 +567,8 @@ async def cb_nav(callback: types.CallbackQuery) -> None:
 # ── Entradas ────────────────────────────────────────────────────────────────
 @dp.message(F.photo)
 async def handle_photo(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     status = await message.answer("👀 Lendo o texto da imagem (OCR)…")
     try:
         # photo[-1] = maior resolução disponível, melhor para OCR.
@@ -544,8 +588,8 @@ async def handle_photo(message: types.Message) -> None:
 
 @dp.message(F.document)
 async def handle_document(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
 
     document = message.document
     kind = extract.classify(document.file_name or "", document.mime_type or "")
@@ -590,8 +634,8 @@ async def handle_document(message: types.Message) -> None:
 
 @dp.message(F.text)
 async def handle_text(message: types.Message) -> None:
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     text = (message.text or "").strip()
     if not text:
         return
@@ -604,8 +648,8 @@ async def handle_text(message: types.Message) -> None:
 @dp.message(F.caption)
 async def handle_caption(message: types.Message) -> None:
     """Mídia não suportada mas com legenda: trata a legenda como texto."""
-    if not allowed(message.from_user.id):
-        return
+    if not await allowed(message.from_user.id):
+        return await pedir_vinculo(message)
     await process(message, message.caption.strip(), "texto")
 
 

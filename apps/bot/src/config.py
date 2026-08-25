@@ -59,6 +59,13 @@ ALLOWED_USER_IDS = [
     int(x) for x in _env("ALLOWED_USER_IDS").split(",") if x.strip().lstrip("-").isdigit()
 ]
 
+# ── Identidade central (LoginHUB) ───────────────────────────────────────────
+# API interna do proprio backend — e ele quem guarda o vinculo telegram->hub e
+# quem sabe a regra do passe de uso unico.
+BACKEND_API_URL = _env("BACKEND_API_URL", default="http://lbs_ttsapp_backend:3000/api/v1").rstrip("/")
+# Mesma chave do backend: e o que autoriza o bot em /api/v1/bot/*.
+BOT_SERVICE_KEY = _env("BOT_SERVICE_KEY")
+
 # ── Diretórios ──────────────────────────────────────────────────────────────
 # tmp/  = áudio efêmero (apagado após enviar). data/ = preferências persistidas.
 TMP_DIR = Path(_env("TMP_DIR", default="tmp"))

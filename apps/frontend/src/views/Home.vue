@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import Navbar from '../components/Navbar.vue';
 import FileUploader from '../components/FileUploader.vue';
 import SettingsModal from '../components/SettingsModal.vue';
+import TelegramLinkCard from '../components/TelegramLinkCard.vue';
 import AudioPlayer from '../components/AudioPlayer.vue';
 import { fetchLanguages, processTranslation } from '../services/api';
 import { Language, SpeedOption, TranslationResult } from '../types';
@@ -60,6 +61,12 @@ function resetApp() {
     <Navbar @open-settings="isSettingsOpen = true" />
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <!-- Vinculo do bot: quem decide o acesso ao Telegram agora e o LoginHUB,
+           nao mais uma lista de IDs no .env. -->
+      <div class="max-w-3xl mx-auto">
+        <TelegramLinkCard />
+      </div>
+
       <!-- Error Alert -->
       <div v-if="errorMessage" class="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex items-center justify-between text-rose-300 max-w-3xl mx-auto text-sm">
         <div class="flex items-center gap-3">
