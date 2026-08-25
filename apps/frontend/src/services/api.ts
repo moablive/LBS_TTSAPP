@@ -1,5 +1,5 @@
 import { Language, SpeedOption, TranslationResult } from "../types";
-import { api } from "@loginhub/api-client";
+import { api } from "./http";
 
 const API_BASE = "/api/v1/translate";
 
