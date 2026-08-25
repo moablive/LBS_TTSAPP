@@ -37,10 +37,44 @@ async function handleLogin() {
   error.value = '';
   
   try {
-    await authStore.login({ email: email.value, password: password.value });
+    const r = await authStore.login({ email: email.value, password: password.value });
+
+    // 'enrolar': a conta exige 2FA e ainda nao tem autenticador. A tela de QR
+    // e a do hub, compartilhada por todos os apps.
+    if (r.etapa === 'enrolar') {
+      window.location.href = r.url;
+      return;
+    }
+    // '2fa': o template troca para o campo de codigo; nada a fazer aqui.
+    if (r.etapa === 'sessao') router.push('/');
+  } catch (err: any) {
+    error.value = traduzir(err);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Segunda etapa: a senha conferiu, mas a sessao so nasce depois do codigo.
+const codigo = ref('');
+const usarBackup = ref(false);
+
+function traduzir(e: any): string {
+  const cod = e?.code;
+  if (cod === 'CODIGO_INVALIDO') return 'Codigo invalido. Confira o relogio do celular e tente o proximo.';
+  if (cod === 'CHALLENGE_INVALIDO') return 'A janela de verificacao expirou. Faca login de novo.';
+  if (cod === 'MUITAS_TENTATIVAS') return e.message;
+  if (cod === 'REDE') return 'Sem conexao com o servidor de login.';
+  return e?.message || 'Erro ao realizar login.';
+}
+
+async function handleSegundoFator() {
+  loading.value = true;
+  error.value = '';
+  try {
+    await authStore.verificarSegundoFator(codigo.value.trim(), usarBackup.value);
     router.push('/');
   } catch (err: any) {
-    error.value = err.message || 'Erro ao realizar login.';
+    error.value = traduzir(err);
   } finally {
     loading.value = false;
   }
@@ -61,7 +95,8 @@ async function handleLogin() {
         <span>{{ error }}</span>
       </div>
 
-      <form @submit.prevent="handleLogin" class="space-y-4">
+      <!-- Etapa 1: credenciais -->
+      <form v-if="!authStore.aguardandoSegundoFator" @submit.prevent="handleLogin" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-300 mb-1">Email</label>
           <input
@@ -92,6 +127,45 @@ async function handleLogin() {
           <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
           <LogIn v-else class="w-5 h-5" />
           <span>{{ loading ? 'Entrando...' : 'Entrar' }}</span>
+        </button>
+      </form>
+
+      <!-- Etapa 2: segundo fator -->
+      <form v-else @submit.prevent="handleSegundoFator" class="space-y-4">
+        <p class="text-sm text-slate-400 text-center">
+          {{ usarBackup
+            ? 'Digite um dos códigos de recuperação que você guardou.'
+            : 'Digite o código de 6 dígitos do seu aplicativo autenticador.' }}
+        </p>
+
+        <input
+          v-model="codigo"
+          type="text"
+          required
+          autofocus
+          autocomplete="one-time-code"
+          :inputmode="usarBackup ? 'text' : 'numeric'"
+          :maxlength="usarBackup ? 11 : 6"
+          :placeholder="usarBackup ? 'XXXXX-XXXXX' : '000000'"
+          class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-center tracking-[0.4em] text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+        />
+
+        <button
+          type="submit"
+          :disabled="loading || !codigo"
+          class="w-full flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+        >
+          <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
+          <LogIn v-else class="w-5 h-5" />
+          <span>{{ loading ? 'Verificando...' : 'Verificar' }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="w-full text-sm text-slate-400 hover:text-sky-400 transition-colors"
+          @click="usarBackup = !usarBackup; codigo = ''; error = ''"
+        >
+          {{ usarBackup ? 'Usar o aplicativo autenticador' : 'Perdi o acesso ao autenticador' }}
         </button>
       </form>
     </div>

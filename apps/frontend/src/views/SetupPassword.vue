@@ -99,7 +99,16 @@ async function handleSetupPassword() {
   loading.value = true;
   
   try {
-    await authStore.setupPassword(token.value, password.value);
+    const r = await authStore.setupPassword(token.value, password.value);
+
+    // 'enrolar': o convite exige 2FA e falta configurar. Emenda direto no QR do
+    // hub — o magic link ja morreu nesta chamada, nao da para voltar.
+    if (r.etapa === 'enrolar') {
+      window.location.href = r.url;
+      return;
+    }
+    // '2fa': conta que JA tem autenticador (tipico de reset de senha). O hub
+    // devolve desafio em vez de sessao; o login fecha a etapa.
     success.value = true;
     setTimeout(() => {
       router.push('/login');
