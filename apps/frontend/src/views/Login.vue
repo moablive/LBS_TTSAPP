@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import TwoFactorEnroll from '../components/TwoFactorEnroll.vue';
 import { useRouter, useRoute } from 'vue-router';
 import { LogIn, Loader2, AlertCircle } from 'lucide-vue-next';
 
@@ -9,6 +10,9 @@ const password = ref('');
 const loading = ref(false);
 const error = ref('');
 const authStore = useAuthStore();
+
+/** Passe de enrolamento. Enquanto existir, o QR toma a tela. */
+const enrolarToken = ref<string | null>(null);
 const router = useRouter();
 const route = useRoute();
 
@@ -39,10 +43,11 @@ async function handleLogin() {
   try {
     const r = await authStore.login({ email: email.value, password: password.value });
 
-    // 'enrolar': a conta exige 2FA e ainda nao tem autenticador. A tela de QR
-    // e a do hub, compartilhada por todos os apps.
+    // 'enrolar': a conta exige 2FA e ainda nao tem autenticador. O QR e montado
+    // aqui mesmo — atravessar origem com o passe na URL prendia o convite ao
+    // build do painel do hub e deixava o passe no historico do navegador.
     if (r.etapa === 'enrolar') {
-      window.location.href = r.url;
+      enrolarToken.value = r.setupToken;
       return;
     }
     // '2fa': o template troca para o campo de codigo; nada a fazer aqui.
@@ -83,7 +88,14 @@ async function handleSegundoFator() {
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
+    <!-- Enrolamento de 2FA: assume a tela, sem sair do app. -->
+    <TwoFactorEnroll
+      v-if="enrolarToken"
+      :setup-token="enrolarToken"
+      @concluido="router.push('/')"
+    />
+
+    <div v-else class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
       
       <div class="text-center">
         <h1 class="text-3xl font-extrabold text-white">LBSTTSAPP</h1>

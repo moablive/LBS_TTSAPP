@@ -1,6 +1,13 @@
 <template>
   <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-    <div class="max-w-md w-full bg-slate-800 rounded-xl shadow-xl overflow-hidden">
+    <!-- Enrolamento de 2FA, emendado no convite sem sair do app. -->
+    <TwoFactorEnroll
+      v-if="enrolarToken"
+      :setup-token="enrolarToken"
+      @concluido="router.push('/')"
+    />
+
+    <div v-else class="max-w-md w-full bg-slate-800 rounded-xl shadow-xl overflow-hidden">
       <div class="p-8">
         <div class="text-center mb-8">
           <h2 class="text-3xl font-bold text-white">Criar Senha</h2>
@@ -59,6 +66,10 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import TwoFactorEnroll from '../components/TwoFactorEnroll.vue';
+
+/** Passe de enrolamento: quando existe, o QR assume a tela. */
+const enrolarToken = ref<string | null>(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -101,10 +112,11 @@ async function handleSetupPassword() {
   try {
     const r = await authStore.setupPassword(token.value, password.value);
 
-    // 'enrolar': o convite exige 2FA e falta configurar. Emenda direto no QR do
-    // hub — o magic link ja morreu nesta chamada, nao da para voltar.
+    // 'enrolar': o convite exige 2FA e falta configurar. Emenda direto no QR,
+    // aqui mesmo — o magic link ja morreu nesta chamada, nao da para voltar a
+    // esta tela: motivo de sobra para nao atravessar origem no meio do caminho.
     if (r.etapa === 'enrolar') {
-      window.location.href = r.url;
+      enrolarToken.value = r.setupToken;
       return;
     }
     // '2fa': conta que JA tem autenticador (tipico de reset de senha). O hub

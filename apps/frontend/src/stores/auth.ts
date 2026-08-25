@@ -7,7 +7,6 @@ const LOGINHUB_API = import.meta.env.VITE_LOGINHUB_API_URL || 'http://localhost:
 const LOGINHUB_APP_ID = String(Number(import.meta.env.VITE_LOGINHUB_APP_ID) || 13);
 /** Painel do LoginHUB — é lá que mora a tela de enrolamento de 2FA (com o QR). */
 // @ts-ignore
-const LOGINHUB_UI = import.meta.env.VITE_LOGINHUB_UI_URL || 'https://loginhub.astralwavelabel.com';
 
 const hub = createHubAuth({
   baseUrl: LOGINHUB_API,
@@ -15,9 +14,6 @@ const hub = createHubAuth({
   tokenKey: 'awl_token',
 });
 
-const urlEnrolamento = (setupToken: string) =>
-  `${LOGINHUB_UI}/enrolar-2fa?token=${encodeURIComponent(setupToken)}` +
-  `&retorno=${encodeURIComponent(window.location.origin)}`;
 
 /**
  * Sessão do LoginHUB.
@@ -50,7 +46,7 @@ export const useAuthStore = defineStore('auth', {
      * Devolve a etapa alcançada:
      *   'sessao'  — autenticado, pode navegar
      *   '2fa'     — pedir o código e chamar `verificarSegundoFator`
-     *   'enrolar' — redirecionar para `url` (tela de QR do hub)
+     *   'enrolar' — montar o QR aqui mesmo com `setupToken` (TwoFactorEnroll)
      */
     async login(payload: { email: string; password?: string; access_token?: string }) {
       // Entrada por token na query (callback do hub): já é sessão pronta.
@@ -70,7 +66,7 @@ export const useAuthStore = defineStore('auth', {
       if (r.status === 'enrolar') {
         // O passe de 10 min só abre as rotas de enrolamento. A tela com o QR é
         // a do hub — nenhum app cliente reimplementa.
-        return { etapa: 'enrolar' as const, url: urlEnrolamento(r.setupToken) };
+        return { etapa: 'enrolar' as const, setupToken: r.setupToken };
       }
 
       this.token = r.session.token;
@@ -78,6 +74,29 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /** Fecha o login pendente com o código do autenticador (ou de recuperação). */
+    /**
+     * Enrolamento de 2FA, passo 1: pede o secret e a URI `otpauth://` ao hub.
+     *
+     * O QR e desenhado NO NAVEGADOR (ver TwoFactorEnroll) — o segredo nao vai
+     * para gerador de terceiro nenhum, e o passe nao atravessa origem: antes
+     * ele viajava na query string ate o painel do hub, o que amarrava o convite
+     * ao build daquele painel e deixava o passe no historico do navegador.
+     */
+    async iniciarEnrolamento(setupToken: string) {
+      return hub.twoFactor.setup(setupToken);
+    },
+
+    /**
+     * Passo 2: confirma com o codigo. A ativacao mata o passe que fez esta
+     * chamada e devolve uma sessao nova — o kit ja a grava; sincronizar
+     * `this.token` evita a pessoa cair deslogada ao terminar o convite.
+     */
+    async confirmarEnrolamento(codigo: string, setupToken: string) {
+      const r = await hub.twoFactor.verifySetup(codigo, setupToken);
+      this.token = hub.getToken();
+      return r;
+    },
+
     async verificarSegundoFator(codigo: string, usarBackup = false) {
       if (!this.challengeToken) throw new Error('sem_desafio');
       const sessao = usarBackup
@@ -103,7 +122,7 @@ export const useAuthStore = defineStore('auth', {
         return { etapa: '2fa' as const };
       }
       if (r.status === 'enrolar') {
-        return { etapa: 'enrolar' as const, url: urlEnrolamento(r.setupToken) };
+        return { etapa: 'enrolar' as const, setupToken: r.setupToken };
       }
 
       this.token = r.session.token;
