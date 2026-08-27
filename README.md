@@ -95,6 +95,63 @@ docker logs -f lbs_ttsapp_frontend
 docker logs -f lbs_ttsapp_bot
 ```
 
+## 🔥 Hot reload (modo dev)
+
+Em produção o front é build estático servido por nginx e o backend roda o
+código compilado — editar arquivo não muda nada até republicar. Para
+desenvolver existe o `docker-compose.dev.yml`, que **não** é usado por
+`docker compose up -d` sozinho nem pelo `redeploy.sh`:
+
+```bash
+docker compose --env-file ../shared.env --env-file .env \
+  -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+Editou no host, o container reage: `tsx watch` reinicia o backend em ~1 s, e o
+Vite troca o módulo no navegador sem recarregar a página.
+
+| Serviço | Onde responde em dev |
+|---|---|
+| Frontend (Vite) | `http://<host>:5181` |
+| Backend (direto) | `http://<host>:5081` |
+
+### O que o override troca
+
+- **Estágio da imagem**: em vez da imagem final (nginx / runtime enxuto), sobe o
+  estágio `deps`, que tem as dependências instaladas e **não** tem o código — o
+  código vem do bind mount.
+- **Comando**: `pnpm ... dev` no lugar do `nginx`/`pnpm start`.
+- **Volumes**: a raiz do repositório vai para dentro do container, e cada
+  `node_modules` ganha um **volume anônimo** que o protege. Sem isso o
+  `node_modules` do host cobriria o do container — e o do host foi resolvido
+  para outra plataforma, então o Vite morre no boot. **Workspace novo em
+  `apps/` ou `packages/` exige linha nova na âncora `x-hot-reload`.**
+- **Imagem com nome próprio** (sufixo `-dev`): sem isso o compose reaproveita a
+  imagem de produção já tagueada com o mesmo nome, ignora o `target:` e o
+  container sobe com o nginx, morrendo em `pnpm: not found`.
+- **Proxy `/api`**: em produção quem encaminha é o nginx; em dev ele sai do
+  caminho e quem assume é o próprio Vite, via `DEV_API_TARGET`.
+
+> **Este app não é workspace pnpm.** Cada serviço tem Dockerfile, `npm install`
+> e contexto de build próprios, então o bind mount é por serviço e basta um
+> volume anônimo em cada. O **bot fica de fora**: é Python, sem watcher — o
+> código está montado, mas quem aplica a mudança é `docker restart
+> lbs_ttsapp_bot`.
+
+### Quando ainda é preciso rebuildar
+
+O hot reload cobre **código**. Mudança em `package.json` (dependências),
+`Dockerfile`, `.env` ou no próprio compose exige recriar:
+
+```bash
+docker compose ... down -v && docker compose ... up -d --build
+```
+
+O `-v` não é opcional: `--build` reconstrói a imagem, mas o **volume anônimo
+sobrevive com o `node_modules` antigo** e continua sendo montado por cima.
+
+---
+
 ## 🏷️ Versionamento e aviso de nova versão
 
 Toda publicação incrementa a versão e a mostra no app. Serve para duas coisas:

@@ -1,0 +1,61 @@
+# Sobreposicao de DESENVOLVIMENTO — nada aqui vai para producao.
+#
+#   docker compose --env-file ../shared.env --env-file .env \
+#     -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# O docker-compose.yml sozinho continua sendo producao: build multi-stage, front
+# servido por nginx, sem volume de codigo. Este arquivo troca as imagens finais
+# pelo estagio `builder`, que ja tem as dependencias instaladas, monta o codigo
+# de dentro e roda os watchers — `tsx watch` no backend, Vite com HMR no front.
+#
+# Ao contrario dos outros tres apps da suite, aqui NAO ha workspace pnpm: cada
+# servico tem seu proprio Dockerfile, seu proprio npm install e seu contexto de
+# build (apps/backend, apps/frontend, apps/bot). Por isso o bind mount e por
+# servico, e basta UM volume anonimo em cada — nao ha node_modules de pacote
+# compartilhado para blindar.
+#
+# Em dev o nginx sai do caminho, e com ele o proxy /api: quem passa a encaminhar
+# e o proprio Vite, pelo DEV_API_TARGET (ver apps/frontend/vite.config.ts). O
+# tunel da Cloudflare aponta para o nginx, entao em modo dev o acesso e pela
+# porta publicada.
+#
+# O bot fica de fora de proposito: e Python, sem watcher. O codigo esta montado
+# para a edicao chegar no container, mas quem aplica e `docker restart
+# lbs_ttsapp_bot`.
+
+#
+# Cada servico de dev tem `image:` proprio (sufixo -dev). Sem isso o compose
+# reaproveita a imagem de PRODUCAO ja tagueada com o mesmo nome e ignora o
+# `target:` — o container sobe com o nginx e morre em `pnpm: not found`, que e
+# um erro bem dificil de ler. Com nome proprio, a imagem nao existe na primeira
+# vez e o compose a constroi sozinho.
+
+services:
+  lbs_ttsapp_backend:
+    image: lbs_ttsapp_backend_dev
+    build:
+      target: builder
+    command: npm run dev
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+    ports:
+      - "5081:3000"
+
+  lbs_ttsapp_frontend:
+    image: lbs_ttsapp_frontend_dev
+    build:
+      target: builder
+    command: npm run dev
+    environment:
+      DEV_API_TARGET: http://lbs_ttsapp_backend:3000
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    ports:
+      - "5181:5173"
+
+  lbs_ttsapp_bot:
+    volumes:
+      - ./apps/bot:/app
+      - /app/data
