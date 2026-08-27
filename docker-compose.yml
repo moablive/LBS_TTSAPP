@@ -20,6 +20,10 @@ services:
       # Montado a partir do DB_DSN (../shared.env) + DB_NAME (.env), como nos
       # demais apps. O banco entrou para guardar o vinculo telegram->loginhub.
       DATABASE_URL: "${DB_DSN:?defina DB_DSN em ../shared.env}/${DB_NAME:?defina DB_NAME no .env do app}"
+      # Versão do build (gerada por scripts/bump-version.mjs). Sai no /health
+      # e é o que o front compara para descobrir que houve deploy.
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
       interval: 10s
@@ -38,6 +42,9 @@ services:
       args:
         VITE_LOGINHUB_API_URL: ${VITE_LOGINHUB_API_URL}
         VITE_LOGINHUB_APP_ID: ${VITE_LOGINHUB_APP_ID}
+        # Mesma versão do backend, congelada no bundle pelo vite build.
+        VITE_APP_VERSION: ${APP_VERSION:-0.0.0}
+        VITE_APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     container_name: lbs_ttsapp_frontend
     depends_on:
       lbs_ttsapp_backend:

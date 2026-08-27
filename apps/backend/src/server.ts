@@ -24,7 +24,16 @@ app.use(httpLogger({ logger }));
 
 // Health Check
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", app: "LBSTTSAPP Backend", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    app: "LBSTTSAPP Backend",
+    // Versão do build, injetada pelo docker-compose a partir do arquivo VERSION.
+    // O front compara com a que ficou congelada no bundle dele — ver
+    // frontend/src/composables/useVersionCheck.ts.
+    version: process.env.APP_VERSION || "0.0.0",
+    buildDate: process.env.APP_BUILD_DATE || null,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 import { authMiddleware } from "./middlewares/auth.middleware.js";

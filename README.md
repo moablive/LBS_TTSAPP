@@ -75,7 +75,7 @@ O projeto garante vozes feminina e masculina para cada idioma e velocidades de l
 
 Para fazer o deploy automático em ambiente integrado à suite:
 ```bash
-/mnt/docker-services/LifeBusinessSuit/deploy/redeploy.sh LBSTTSAPP
+/mnt/nvme2tb/docker-services/LifeBusinessSuit/deploy/redeploy.sh LBSTTSAPP
 ```
 
 Ou executando o docker compose manualmente:
@@ -94,6 +94,72 @@ docker logs -f lbs_ttsapp_frontend
 # Logs do bot do telegram
 docker logs -f lbs_ttsapp_bot
 ```
+
+## 🏷️ Versionamento e aviso de nova versão
+
+Toda publicação incrementa a versão e a mostra no app. Serve para duas coisas:
+saber de fora qual build está no ar, e avisar quem está com o app aberto que
+saiu build novo — quem instala na tela inicial fica semanas sem recarregar de
+verdade, rodando código antigo sem saber.
+
+### O fluxo
+
+```
+VERSION (0.0.1)                       ← fonte da verdade, versionada no git
+   │  node scripts/bump-version.mjs
+   ▼
+0.0.2 + APP_BUILD_DATE
+   │
+   └─▶ .env  (APP_VERSION, APP_BUILD_DATE)   ← lido pelo --env-file do deploy
+              │
+              ├─▶ backend  APP_VERSION       → GET /health
+              └─▶ frontend VITE_APP_VERSION  → build-arg, congelado no bundle
+                             │
+                             ▼
+                   useVersionCheck compara os dois
+                             │  divergiu?
+                             ▼
+                   UpdateBanner: "Nova versão disponível"
+```
+
+### Comandos
+
+| Comando | Efeito |
+|---|---|
+| `node scripts/bump-version.mjs` | `0.0.1` → `0.0.2` (patch) |
+| `node scripts/bump-version.mjs --minor` | `0.0.9` → `0.1.0` |
+| `node scripts/bump-version.mjs --major` | `0.1.4` → `1.0.0` |
+| `node scripts/bump-version.mjs --set 2.5.0` | define manualmente |
+
+O `VERSION` é a fonte da verdade e é versionado; o `.env` é espelho gerado —
+**não edite `APP_VERSION` à mão.** Depois do bump, republique normalmente
+(`redeploy.sh`, que já roda com `--build`): é o rebuild que carrega a versão
+nova para dentro do bundle do front.
+
+### Onde aparece
+
+| Onde | O quê |
+|---|---|
+| `GET /health` | `{ version, buildDate }` — público, é o que o front consulta |
+| Canto inferior direito | badge `v0.0.2`; o *tooltip* mostra a data do build |
+| Banner, quando diverge | "Nova versão disponível" com **Depois** / **Atualizar agora** |
+
+### Como funciona por dentro
+
+- `apps/frontend/src/composables/useVersionCheck.ts` pergunta ao `/health` a
+  cada 5 min (só com a aba visível) e ao voltar o foco para o app — que é o
+  momento mais provável de haver deploy esperando. Usa `fetch` puro: o cliente
+  HTTP do app derruba a sessão em qualquer 401, e uma checagem de fundo não pode
+  ter esse poder.
+- **O aviso é uma sugestão, não um reload automático.** Recarregar sozinho
+  jogaria fora formulário meio preenchido; quem decide é o usuário.
+- O `nginx.conf` do front encaminha `/health` ao backend de propósito. Sem essa
+  `location`, o caminho cairia no *SPA fallback* e devolveria o `index.html` —
+  JSON esperado, HTML recebido, e o banner nunca apareceria.
+- Sem `APP_VERSION` no ambiente (dev local), a checagem se desliga sozinha: sem
+  baseline, toda comparação seria falso positivo.
+
+---
 
 ## Decisões de Arquitetura
 
