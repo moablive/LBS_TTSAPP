@@ -38,6 +38,14 @@ if not config.TOKEN:
 bot = Bot(token=config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
+# Uso privado, como nos outros bots do ecossistema: em grupo o texto do
+# documento e o audio ficam visiveis para todos na conversa, e o vinculo do
+# LoginHUB responde por uma pessoa so. O filtro no dispatcher vale para todos
+# os handlers de uma vez — checar chat a chat seria um `if` esquecivel em cada
+# um dos quinze que ja chamam `allowed()`.
+dp.message.filter(F.chat.type == "private")
+dp.callback_query.filter(F.message.chat.type == "private")
+
 TELEGRAM_LIMIT = 4096
 BTN_LANG, BTN_VOICE, BTN_SPEED = "🌐 Idioma", "🗣 Voz", "⚡ Velocidade"
 
@@ -49,17 +57,21 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 async def allowed(user_id: Optional[int]) -> bool:
-    """Quem pode falar com o bot.
+    """Quem pode falar com o bot: quem tem conta vinculada no LoginHUB.
 
-    A fonte de verdade e o LoginHUB: vale quem tem a conta vinculada (ver
-    `vinculo.py`). O `ALLOWED_USER_IDS` sobrevive como escotilha de emergencia —
-    se estiver preenchido, aqueles IDs entram mesmo sem vinculo, o que salva o
-    dia se o backend cair. Vazio = so o hub decide.
+    Fonte UNICA, sem excecao local. Existiu aqui um `ALLOWED_USER_IDS` — uma
+    lista de IDs no `.env` que entravam sem vinculo, como escotilha para o caso
+    de o backend cair. Foi removido: com ele, desligar a conta no hub NAO
+    desligava o bot, e o 2FA saia do caminho para aqueles IDs. Pior, a queda do
+    backend nao e rara nem imprevisivel — o backup diario derruba o Postgres
+    todo dia, e naquela janela quem mandava era a lista, nao o hub.
+
+    O preco e ficar sem bot enquanto o backend estiver fora. E o mesmo preco que
+    MoneyAPP, NotesAPP e TodoAPP ja pagam, e barato para um bot que le texto em
+    voz alta.
     """
     if user_id is None:
         return False
-    if user_id in config.ALLOWED_USER_IDS:
-        return True
     return await vinculo.loginhub_id(user_id) is not None
 
 
@@ -659,12 +671,11 @@ async def main() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     logger.info(
-        "LBSTTSAPP subindo · ollama=%s texto=%s visão=%s · alvo padrão=%s · acesso=%s",
+        "LBSTTSAPP subindo · ollama=%s texto=%s visão=%s · alvo padrão=%s · acesso=vínculo LoginHUB",
         config.OLLAMA_URL,
         config.OLLAMA_TEXT_MODEL,
         config.OLLAMA_VISION_MODEL,
         config.DEFAULT_TARGET_LANG,
-        config.ALLOWED_USER_IDS or "aberto",
     )
 
     await bot.set_my_commands([

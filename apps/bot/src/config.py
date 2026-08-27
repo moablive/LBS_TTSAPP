@@ -54,10 +54,6 @@ def _int(*names: str, default: int) -> int:
 
 # ── Telegram ────────────────────────────────────────────────────────────────
 TOKEN = _env("TELEGRAM_BOT_TOKEN")
-# Lista vazia = bot aberto. Preenchida = só esses IDs conversam com ele.
-ALLOWED_USER_IDS = [
-    int(x) for x in _env("ALLOWED_USER_IDS").split(",") if x.strip().lstrip("-").isdigit()
-]
 
 # ── Identidade central (LoginHUB) ───────────────────────────────────────────
 # API interna do proprio backend — e ele quem guarda o vinculo telegram->hub e

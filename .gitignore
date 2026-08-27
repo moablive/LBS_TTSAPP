@@ -1,7 +1,8 @@
-# Segredos
+# Segredos: valor real so no .env local; o repo versiona apenas o exemplo
+# `.env.*` (e nao so `.env.local`) porque backup tipo `.env.bak.20260827-...`
+# tambem carrega o token do bot. Mesmo bloco dos outros tres apps da suite.
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 
 # Runtime
