@@ -37,3 +37,10 @@ build/
 .env
 .env.*
 !.env.example
+
+# Store local do pnpm: e cache de pacote, nao codigo. Versionado, ele trouxe
+# ~20k arquivos de terceiros para dentro do repositorio — inclusive README e
+# fixture de pacote com chave de exemplo, que o gitleaks acusa como vazamento a
+# cada varredura, escondendo achado de verdade no meio do ruido.
+.pnpm-store/
+
