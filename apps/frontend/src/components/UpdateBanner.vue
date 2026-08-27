@@ -1,27 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useVersionCheck } from '../composables/useVersionCheck';
+import { usePwaUpdate } from '../composables/usePwaUpdate';
 
-// Aviso de build novo. O sinal vem da comparação entre a versão congelada neste
-// bundle e a que o /health do backend devolve — ver useVersionCheck.
-const { versaoNova, atualizar } = useVersionCheck();
+// Aviso de build novo. Este app tem service worker com precache, entao o sinal
+// vem de dois lugares e o usePwaUpdate concilia: o /health do backend (chega
+// antes) e o proprio SW (preciso, com os arquivos ja baixados).
+const { precisaAtualizar, versaoNova, aplicando, aplicar } = usePwaUpdate();
 
 // Dispensar vale só para a versão dispensada e só nesta aba: se sair outro
-// deploy depois, o aviso volta.
+// deploy depois, o aviso volta. Quando só o SW acusou não há número de versão —
+// 'sw' serve de chave, e o próximo deploy troca o sinal de novo.
 const dispensada = ref<string | null>(null);
-const visivel = computed(() => Boolean(versaoNova.value) && dispensada.value !== versaoNova.value);
-
-// Trava o botão durante o update()+reload, que leva um instante.
-const aplicando = ref(false);
-async function aplicar() {
-  if (aplicando.value) return;
-  aplicando.value = true;
-  try {
-    await atualizar();
-  } finally {
-    aplicando.value = false;
-  }
-}
+const chave = computed(() => versaoNova.value ?? 'sw');
+const visivel = computed(() => precisaAtualizar.value && dispensada.value !== chave.value);
 
 // Rebuild sem bump muda só a data: aí a versão no ar é a mesma string e citá-la
 // no texto confundiria ("a v0.0.3 já está no ar" para quem está na v0.0.3).
@@ -62,7 +53,7 @@ const descricao = computed(() =>
           :disabled="aplicando"
           class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 transition
                  hover:bg-slate-800 hover:text-slate-100 disabled:opacity-50"
-          @click="dispensada = versaoNova"
+          @click="dispensada = chave"
         >
           Depois
         </button>

@@ -6,7 +6,14 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt", nao "autoUpdate": quem decide recarregar e o usuario, no
+      // UpdateBanner. Trocar o bundle embaixo de um formulario meio preenchido
+      // e a mesma decisao que o useVersionCheck ja tinha tomado — e alinha este
+      // app com os outros tres da suite.
+      registerType: "prompt",
+      // O registro vive em usePwaUpdate: precisamos do `needRefresh` para
+      // acender o banner, e nao do script solto que o plugin injetaria no HTML.
+      injectRegister: false,
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg", "logo.png"],
       manifest: {
         name: "LBSTTSAPP — LBSTTSAPP",
