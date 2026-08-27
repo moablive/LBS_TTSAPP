@@ -31,3 +31,8 @@ build/
 # Claude Code — config local; ja vazou segredos via permissions.allow
 .claude/settings.local.json
 **/.claude/settings.local.json
+
+# Segredos: valor real so no .env local; o repo versiona apenas o exemplo
+.env
+.env.*
+!.env.example
