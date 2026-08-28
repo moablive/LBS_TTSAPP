@@ -15,7 +15,7 @@ importers:
         specifier: link:../../../../server/dashboard/packages/api-client
         version: link:../../../../server/dashboard/packages/api-client
       '@loginhub/schema':
-        specifier: file:/mnt/docker-services/server/dashboard/packages/schema/loginhub-schema-1.0.0.tgz
+        specifier: file:../../../../server/dashboard/packages/schema/loginhub-schema-1.0.0.tgz
         version: file:../../../../server/dashboard/packages/schema/loginhub-schema-1.0.0.tgz
       '@vueuse/core':
         specifier: ^10.9.0
