@@ -7,7 +7,7 @@
  *   - backend  -> APP_VERSION       (aparece no /health)
  *   - frontend -> VITE_APP_VERSION  (build-arg; badge + aviso de update)
  *
- * O `.env` é o arquivo que o deploy/redeploy.sh passa em `--env-file`, ou seja
+ * O `.env` é o arquivo que o redeploy.sh do painel passa em `--env-file`, ou seja
  * é dele que sai a interpolação de `${APP_VERSION}` no compose. Escrever no
  * shared.env seria errado: a versão é de cada app, não da infra comum.
  *

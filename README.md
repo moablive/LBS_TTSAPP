@@ -75,7 +75,7 @@ O projeto garante vozes feminina e masculina para cada idioma e velocidades de l
 
 Para fazer o deploy automático em ambiente integrado à suite:
 ```bash
-/mnt/nvme2tb/docker-services/LifeBusinessSuit/deploy/redeploy.sh LBSTTSAPP
+/mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TTSAPP
 ```
 
 Ou executando o docker compose manualmente:
@@ -250,12 +250,12 @@ infraestrutura de Web Push que cada app carregava duplicada.
 ```bash
 # 1) o PWA passa a registrar o aparelho na central
 #    .env:  VITE_LBS_NOTIFY_URL='https://notify.astralwavelabel.com'
-bash ../deploy/redeploy.sh LBSTTSAPP
+bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TTSAPP
 #    -> abra o app, ative as notificações, confirme que chega
 
 # 2) a entrega passa a sair da central
 #    .env:  TTS_NOTIFY_USE_CENTRAL='true'
-bash ../deploy/redeploy.sh LBSTTSAPP
+bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TTSAPP
 ```
 
 ### Duas coisas que mordem
