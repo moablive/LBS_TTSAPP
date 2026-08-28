@@ -33,11 +33,6 @@ build/
 .claude/settings.local.json
 **/.claude/settings.local.json
 
-# Segredos: valor real so no .env local; o repo versiona apenas o exemplo
-.env
-.env.*
-!.env.example
-
 # Store local do pnpm: e cache de pacote, nao codigo. Versionado, ele trouxe
 # ~20k arquivos de terceiros para dentro do repositorio — inclusive README e
 # fixture de pacote com chave de exemplo, que o gitleaks acusa como vazamento a
