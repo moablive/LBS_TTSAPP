@@ -45,6 +45,10 @@ services:
         # Mesma versão do backend, congelada no bundle pelo vite build.
         VITE_APP_VERSION: ${APP_VERSION:-0.0.0}
         VITE_APP_BUILD_DATE: ${APP_BUILD_DATE:-}
+        # Base da plataforma central de notificacoes (LBS Notify). VAZIO = o app
+        # continua usando as rotas /api/push/* dele mesmo. Preenchido, o
+        # aparelho passa a ser registrado na central. Ver LBSNotify/README.md.
+        VITE_LBS_NOTIFY_URL: ${VITE_LBS_NOTIFY_URL:-}
     container_name: lbs_ttsapp_frontend
     depends_on:
       lbs_ttsapp_backend:

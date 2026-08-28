@@ -15,6 +15,13 @@ export default defineConfig({
       // acender o banner, e nao do script solto que o plugin injetaria no HTML.
       injectRegister: false,
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg", "logo.png"],
+      workbox: {
+        // Acrescenta os listeners de Web Push ao SW gerado pelo Workbox, em vez
+        // de registrar um segundo service worker no mesmo escopo — dois SWs
+        // brigando pelo controle da pagina quebrariam o `usePwaUpdate`.
+        // O arquivo vive em public/, entao sai do build sem hash no nome.
+        importScripts: ["push-sw.js"],
+      },
       manifest: {
         name: "LBSTTSAPP — LBSTTSAPP",
         short_name: "LBSTTSAPP",

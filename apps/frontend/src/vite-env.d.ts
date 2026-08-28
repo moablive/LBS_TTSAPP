@@ -13,6 +13,12 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION: string;
   readonly VITE_APP_BUILD_DATE: string;
   readonly VITE_API_BASE_URL: string;
+  /**
+   * Base da plataforma central de notificacoes. VAZIO = este app nao registra
+   * aparelho em lugar nenhum (ele nunca teve Web Push proprio); preenchido, o
+   * registro vai para o LBS Notify.
+   */
+  readonly VITE_LBS_NOTIFY_URL: string;
 }
 
 interface ImportMeta {

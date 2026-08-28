@@ -4,6 +4,7 @@ import { LANGUAGES, SPEEDS, getLanguage, getVoiceForLanguage, getRate } from "..
 import { extractText, parseSections, formatSpokenSection } from "../services/extract.service.js";
 import { detectLanguage, translateBlocks } from "../services/ollama.service.js";
 import { synthesizeTts } from "../services/tts.service.js";
+import { notify, TTS_NOTIFY_MIN_MS } from "../lib/notify.js";
 
 const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
@@ -21,6 +22,7 @@ translateRouter.get("/languages", (req: Request, res: Response) => {
 
 // POST /api/v1/translate/process
 translateRouter.post("/process", upload.single("file"), async (req: Request, res: Response) => {
+  const inicio = Date.now();
   try {
     const rawTextParam = req.body.text as string | undefined;
     const targetLangCode = (req.body.targetLang || "pt-BR") as string;
@@ -70,6 +72,25 @@ translateRouter.post("/process", upload.single("file"), async (req: Request, res
 
     // 4. Format spoken text for each section
     const spokenSections = translatedSections.map((sec) => formatSpokenSection(sec, targetIso));
+
+    // 5. Avisa que ficou pronto, se demorou o bastante para a pessoa ter saido
+    // da aba. `void` de proposito: a notificacao NAO pode atrasar nem derrubar
+    // a resposta que o usuario esta esperando — o cliente engole o proprio erro.
+    const duracaoMs = Date.now() - inicio;
+    const dono = (req as any).user?.sub;
+    if (notify.ativo() && dono && duracaoMs >= TTS_NOTIFY_MIN_MS) {
+      const nome = req.file?.originalname ?? "seu texto";
+      void notify.emitir({
+        // Id ESTAVEL por (dono, arquivo, minuto): um duplo clique no botao
+        // dispara dois processamentos e geraria dois avisos identicos.
+        eventId: `tts:completed:${dono}:${nome}:${new Date(inicio).toISOString().slice(0, 16)}`,
+        type: "tts.completed",
+        userId: String(dono),
+        title: "🔊 Tradução pronta",
+        body: `${nome} — ${translatedSections.length} seções prontas para ouvir.`,
+        data: { url: "/" },
+      });
+    }
 
     return res.json({
       detectedLanguage: detectedIso,
