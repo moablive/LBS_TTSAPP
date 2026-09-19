@@ -11,10 +11,9 @@ import { enviarPushParaEndpoint, pushConfigured } from "../lib/push.js";
  *
  * Ate 19/09/2026 este era o unico app da suite sem push proprio: o desenho
  * original mandava tudo pelo LBS Notify, a central. So que a central nunca
- * entregou uma notificacao — as quatro flags `*_NOTIFY_USE_CENTRAL` estao em
- * `false` e o banco `lbsnotify` tem zero linhas em todas as tabelas, porque
- * falta a borda publica no tunel. Notes, Todo e Money seguiram funcionando o
- * tempo todo pelo caminho proprio; o TTS, que nao tinha, ficou sem nada.
+ * entregou uma notificacao — faltava a borda publica no tunel — e foi
+ * descontinuada. Notes, Todo e Money seguiram funcionando o tempo todo pelo
+ * caminho proprio; o TTS, que nao tinha, ficou sem nada.
  *
  * As rotas espelham as dos outros tres apps de proposito — mesmo contrato,
  * mesmos nomes — para o `usePush` do frontend ser o mesmo codigo em todos.

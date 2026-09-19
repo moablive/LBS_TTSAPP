@@ -1,31 +1,19 @@
 import { ref } from 'vue';
 import { api } from '../services/http';
-import {
-  notifyCentralAtivo,
-  notifyPublicKey,
-  notifyRegistrarWebPush,
-  notifyRemoverWebPush,
-} from '../lib/lbsNotifyClient';
 
 /**
  * Ativacao de Web Push neste aparelho.
  *
- * DOIS CAMINHOS, COMO NOS OUTROS TRES APPS (desde 19/09/2026)
+ * Ate 19/09/2026 este app dependia SO do LBS Notify, a central de push da
+ * suite — sem tabela `push_subscriptions`, sem rota e sem par VAPID. Como a
+ * central nunca entregou nada (faltava a borda publica no tunel), era o unico
+ * app da suite incapaz de avisar o usuario, e o composable se declarava
+ * `isSupported: false` para esconder isso.
  *
- * Ate aqui o LBSTTSAPP tinha um caminho so, o LBS Notify — sem tabela
- * `push_subscriptions`, sem rota `/api/v1/push/*` e sem par VAPID. O problema e
- * que a central nunca entregou nada: as quatro flags `*_NOTIFY_USE_CENTRAL`
- * estao em `false` e o banco `lbsnotify` tem zero linhas, porque falta a borda
- * publica no tunel. Na pratica este era o unico app da suite sem notificacao
- * nenhuma, e o composable se declarava `isSupported: false` para esconder isso.
- *
- * Agora vale a mesma regra dos outros: a central quando ligada, o caminho
- * proprio quando nao. O app so se declara sem suporte quando o NAVEGADOR nao
- * suporta — nunca por falta de configuracao nossa.
+ * Hoje o app tem Web Push proprio e a central nao existe mais. O app so se
+ * declara sem suporte quando o NAVEGADOR nao suporta — nunca por falta de
+ * configuracao nossa.
  */
-
-/** Chave do JWT do LoginHUB no localStorage — a mesma do `tokenKey` em http.ts. */
-const CHAVE_TOKEN = 'awl_token';
 
 const API_BASE = '/api/v1/push';
 
@@ -96,17 +84,14 @@ export function usePush() {
 
       const reg = await navigator.serviceWorker.ready;
 
-      // A chave vem de quem VAI entregar. Assinar com a chave de um serviço e
-      // mandar pelo outro produz 403 no servidor de push do navegador.
-      const publicKey = notifyCentralAtivo
-        ? await notifyPublicKey()
-        : (await api.get<{ publicKey: string }>(`${API_BASE}/public-key`)).data.publicKey;
+      const publicKey = (await api.get<{ publicKey: string }>(`${API_BASE}/public-key`)).data.publicKey;
 
       let sub = await reg.pushManager.getSubscription();
-      // Uma inscrição existente pode ter sido criada com a chave do OUTRO
-      // caminho. Ela nunca passaria a receber, e o sintoma seria "ativei e não
-      // chega nada" — sem erro nenhum. Por isso a chave é conferida e a
-      // inscrição divergente é refeita.
+      // Uma inscrição existente pode ter sido criada com OUTRO par VAPID —
+      // aparelho inscrito antes de uma troca de chave, ou pela extinta central.
+      // Ela nunca voltaria a receber, e o sintoma seria "ativei e não chega
+      // nada", sem erro nenhum. Por isso a chave é conferida e a inscrição
+      // divergente é refeita.
       if (sub && !mesmaChave(sub, publicKey)) {
         await sub.unsubscribe().catch(() => {});
         sub = null;
@@ -119,8 +104,7 @@ export function usePush() {
         });
       }
 
-      if (notifyCentralAtivo) await notifyRegistrarWebPush(sub.toJSON(), CHAVE_TOKEN);
-      else await api.post(`${API_BASE}/subscribe`, sub.toJSON());
+      await api.post(`${API_BASE}/subscribe`, sub.toJSON());
 
       isSubscribed.value = true;
       return true;
@@ -143,11 +127,7 @@ export function usePush() {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        if (notifyCentralAtivo) {
-          await notifyRemoverWebPush(sub.endpoint, CHAVE_TOKEN).catch(() => {});
-        } else {
-          await api.post(`${API_BASE}/unsubscribe`, { endpoint: sub.endpoint }).catch(() => {});
-        }
+        await api.post(`${API_BASE}/unsubscribe`, { endpoint: sub.endpoint }).catch(() => {});
         await sub.unsubscribe();
       }
       isSubscribed.value = false;
