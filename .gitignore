@@ -7,7 +7,11 @@
 
 # Runtime
 tmp/
-data/
+# `/data/` ancorado na raiz de proposito: sem a barra inicial a regra
+# casava em qualquer nivel e engolia apps/frontend/src/data/, que e
+# codigo-fonte. O Home.vue importa de la; ignorado, o clone compilava
+# sem o modulo.
+/data/
 *.mp3
 *.log
 *.pid
