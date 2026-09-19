@@ -226,82 +226,30 @@ nova para dentro do bundle do front.
 
 ---
 
-## 🔔 LBS Notify — notificações pela plataforma central
+## 🔔 Notificações — Web Push próprio
 
-Desde 27/08/2026 existe um serviço central de notificações da suite, o
-[**LBS Notify**](https://github.com/moablive/LBSNotify) (containers
-`lbs_notify_api` e `lbs_notify_worker`, banco `lbsnotify`). Ele substitui a
-infraestrutura de Web Push que cada app carregava duplicada.
+Este app entrega Web Push por conta própria: par VAPID no `.env`, tabela
+`push_subscriptions` no próprio banco e rotas de inscrição no backend. O
+`usePush` do frontend confere a chave da inscrição existente e a refaz quando
+ela é de outro par — sem isso o sintoma seria "ativei e não chega nada", sem
+erro nenhum.
 
-> ⚠️ **Está DESLIGADO por padrão.** Com as flags abaixo em branco/`false` — que
-> é como elas nascem — o comportamento deste app é **exatamente** o de antes.
-> Nada muda até você virar as chaves, e a virada é um app por vez.
+### Sobre o LBS Notify (histórico)
 
-### As flags
+A plataforma **central** de push da suíte foi **descontinuada em 19/09/2026**.
+Ela foi construída, publicada e nunca entregou um único aviso: o rollout
+dependia de um hostname público no túnel Cloudflare que nunca existiu, então as
+flags ficaram em `false` e o banco `lbsnotify` terminou com zero linhas.
 
-| Variável | Onde | Vazio/`false` significa |
-|---|---|---|
-| `VITE_LBS_NOTIFY_URL` | build do frontend | o PWA registra o aparelho no `/api/push/*` deste app |
-| `LBS_NOTIFY_KEY` | backend/bot | chave de serviço deste app na central |
-| `TTS_NOTIFY_USE_CENTRAL` | backend/bot | a entrega continua saindo daqui |
+Containers derrubados, submódulo removido e repositório apagado do GitHub. As
+variáveis `LBS_NOTIFY_URL`, `LBS_NOTIFY_KEY`, `<APP>_NOTIFY_USE_CENTRAL` e
+`VITE_LBS_NOTIFY_URL` saíram do `.env` e do `shared.env`.
 
-### Como ligar
+O código está preservado em `/root/recuperado/LBS_NotifyAPP-20260919.bundle`.
 
-```bash
-# 1) o PWA passa a registrar o aparelho na central
-#    .env:  VITE_LBS_NOTIFY_URL='https://notify.astralwavelabel.com'
-bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TTSAPP
-#    -> abra o app, ative as notificações, confirme que chega
-
-# 2) a entrega passa a sair da central
-#    .env:  TTS_NOTIFY_USE_CENTRAL='true'
-bash /mnt/nvme2tb/docker-services/server/dashboard/scripts/redeploy.sh LifeBusinessSuit/LBS_TTSAPP
-```
-
-### Duas coisas que mordem
-
-**A inscrição antiga não migra.** Uma `PushSubscription` fica amarrada à chave
-pública VAPID usada no `subscribe()` do navegador. O Notify assina com **outro**
-par, então as linhas de `inscrições antigas de outros apps` **não podem** ser copiadas para lá — o
-servidor de push responderia `403` em todo envio. Cada aparelho se reinscreve na
-primeira vez que a pessoa ativa. O `usePush` já confere a chave da inscrição
-existente e a refaz quando ela é do outro caminho; sem isso o sintoma seria
-"ativei e não chega nada", sem erro nenhum.
-
-**Entre os passos 1 e 2 pode chegar em dobro.** O mesmo aparelho fica inscrito
-nos dois lados por um período. É o preço do rollout gradual e some quando
-os outros apps forem migrados.
-
-### O que muda no código deste app
-
-| Arquivo | O que faz |
-|---|---|
-| `apps/frontend/public/push-sw.js` | handlers de `push` e `notificationclick` |
-| `apps/frontend/src/composables/usePush.ts` | ativação no aparelho |
-| `apps/frontend/src/lib/lbsNotifyClient.ts` | registro do aparelho na central |
-| `apps/backend/src/lib/notify.ts` | emite `tts.completed` |
-
-**Este app nunca teve Web Push.** Não há tabela `push_subscriptions`, nem rota
-`/api/push/*`, nem par VAPID próprio. Então aqui **não existe caminho legado a
-preservar**: ou vai pela central, ou não vai. Com `VITE_LBS_NOTIFY_URL` vazio o
-`usePush` se declara não suportado e a UI não oferece o botão, em vez de
-oferecer algo que não teria onde registrar.
-
-> Por isso este é o **melhor app para ligar primeiro**: sem caminho legado, não
-> há como duplicar notificação nem quebrar algo que já funcionava.
-
-**O service worker usa `importScripts`, não um `sw.js` próprio.** Todo, Money e
-Notes escrevem o SW à mão porque não têm plugin de PWA. Aqui o
-`vite-plugin-pwa` já registra um SW gerado pelo Workbox, e o `usePwaUpdate`
-depende dele para acender o `UpdateBanner`. Registrar um segundo SW no mesmo
-escopo faria os dois brigarem pelo controle da página — o `importScripts`
-acrescenta os listeners ao SW que já existe, sem tocar no fluxo de atualização.
-
-**`tts.completed` só sai quando demorou.** O `/process` emite o evento apenas se
-o processamento passou de `TTS_NOTIFY_MIN_MS` (20 s por padrão). Avisar sobre um
-trabalho de 3 segundos é ruído — a pessoa está olhando para a tela quando ele
-termina. O aviso só ajuda quando a tradução demorou o bastante para ela ter
-trocado de aba, que é o caso de PDF grande passando pelo Ollama.
-
-📖 Contrato da API, decisões e operação: [`LBSNotify/README.md`](https://github.com/moablive/LBSNotify).
-Sequência de corte detalhada: `LBSNotify/docs/ARCHITECTURE_DISCOVERY.md`.
+> **Este app não tinha push próprio até 19/09/2026.** Ele dependia só da
+> central, então era o único da suíte incapaz de avisar o usuário — e o
+> `usePush` sequer era chamado por algum componente, logo não havia botão na
+> interface. Ganhou par VAPID, a tabela `push_subscriptions`
+> (`db/001_push_subscriptions.sql`, o primeiro DDL versionado deste repo), as
+> rotas `/api/v1/push/*` e o `NotificationsCard.vue` na Home.
