@@ -1,6 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import pg from "pg";
+import { pool } from "../lib/db.js";
 
 /**
  * Identidade central e vínculo híbrido do Telegram.
@@ -20,12 +20,11 @@ import pg from "pg";
  * O que atravessa o chat é só o passe — 10 minutos, uso único, e guardado como
  * SHA-256: vazamento do banco não entrega passe utilizável.
  *
- * Pool próprio, sem ORM, de propósito: este app não tinha banco nenhum até
- * aqui, e trazer um ORM inteiro para duas tabelas seria peso sem retorno.
+ * Sem ORM, de propósito: este app não tinha banco nenhum até aqui, e trazer um
+ * ORM inteiro para três tabelas seria peso sem retorno. O pool saiu daqui para
+ * `lib/db.ts` quando as rotas de push chegaram — dois pools para o mesmo banco
+ * seriam vinte conexões ociosas por container.
  */
-const { Pool } = pg;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 /** Janela curta: o passe atravessa um canal que guarda histórico. */
 const TTL_MINUTOS = 10;

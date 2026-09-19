@@ -4,7 +4,7 @@ import { LANGUAGES, SPEEDS, getLanguage, getVoiceForLanguage, getRate } from "..
 import { extractText, parseSections, formatSpokenSection } from "../services/extract.service.js";
 import { detectLanguage, translateBlocks } from "../services/ollama.service.js";
 import { synthesizeTts } from "../services/tts.service.js";
-import { notify, TTS_NOTIFY_MIN_MS } from "../lib/notify.js";
+import { avisarUsuario, podeAvisar, TTS_NOTIFY_MIN_MS } from "../lib/notify.js";
 
 const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
@@ -78,9 +78,9 @@ translateRouter.post("/process", upload.single("file"), async (req: Request, res
     // a resposta que o usuario esta esperando — o cliente engole o proprio erro.
     const duracaoMs = Date.now() - inicio;
     const dono = (req as any).user?.sub;
-    if (notify.ativo() && dono && duracaoMs >= TTS_NOTIFY_MIN_MS) {
+    if (podeAvisar() && dono && duracaoMs >= TTS_NOTIFY_MIN_MS) {
       const nome = req.file?.originalname ?? "seu texto";
-      void notify.emitir({
+      void avisarUsuario({
         // Id ESTAVEL por (dono, arquivo, minuto): um duplo clique no botao
         // dispara dois processamentos e geraria dois avisos identicos.
         eventId: `tts:completed:${dono}:${nome}:${new Date(inicio).toISOString().slice(0, 16)}`,
@@ -88,7 +88,7 @@ translateRouter.post("/process", upload.single("file"), async (req: Request, res
         userId: String(dono),
         title: "🔊 Tradução pronta",
         body: `${nome} — ${translatedSections.length} seções prontas para ouvir.`,
-        data: { url: "/" },
+        url: "/",
       });
     }
 

@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import "express-async-errors";
 import { translateRouter } from "./routes/translate.routes.js";
 import { telegramRouter, telegramBotRouter, requireBotKey } from "./routes/telegram.routes.js";
+import { pushRouter } from "./routes/push.routes.js";
 
 dotenv.config();
 
@@ -45,6 +46,10 @@ app.use("/api/v1/translate", authMiddleware, translateRouter);
 // unica rota de servico, chamada pelo proprio bot com a chave compartilhada.
 app.use("/api/v1/telegram", authMiddleware, telegramRouter);
 app.use("/api/v1/bot", requireBotKey, telegramBotRouter);
+
+// Web Push proprio. Atras do authMiddleware: a inscricao e amarrada ao
+// loginhub_id da sessao, nunca a um id vindo do corpo da requisicao.
+app.use("/api/v1/push", authMiddleware, pushRouter);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

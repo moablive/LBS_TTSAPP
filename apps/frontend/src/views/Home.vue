@@ -4,10 +4,12 @@ import Navbar from '../components/Navbar.vue';
 import FileUploader from '../components/FileUploader.vue';
 import SettingsModal from '../components/SettingsModal.vue';
 import TelegramLinkCard from '../components/TelegramLinkCard.vue';
+import NotificationsCard from '../components/NotificationsCard.vue';
 import AudioPlayer from '../components/AudioPlayer.vue';
 import { fetchLanguages, processTranslation } from '../services/api';
 import { Language, SpeedOption, TranslationResult } from '../types';
-import { AlertCircle, RotateCcw } from 'lucide-vue-next';
+import { AlertCircle, RotateCcw, Sparkles } from 'lucide-vue-next';
+import { melhoriasDoServidor } from '../data/melhorias';
 
 const languages = ref<Language[]>([]);
 const speeds = ref<SpeedOption[]>([]);
@@ -50,6 +52,12 @@ async function handleProcess(payload: { file?: File; text?: string }) {
   }
 }
 
+function ouvirMelhorias() {
+  errorMessage.value = null;
+  gender.value = 'female';
+  translationResult.value = melhoriasDoServidor();
+}
+
 function resetApp() {
   translationResult.value = null;
   errorMessage.value = null;
@@ -63,8 +71,11 @@ function resetApp() {
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <!-- Vinculo do bot: quem decide o acesso ao Telegram agora e o LoginHUB,
            nao mais uma lista de IDs no .env. -->
-      <div class="max-w-3xl mx-auto">
+      <!-- Os dois canais de aviso lado a lado: a pessoa escolhe por onde quer
+           ser chamada quando a traducao longa terminar. -->
+      <div class="max-w-3xl mx-auto grid gap-4 md:grid-cols-2">
         <TelegramLinkCard />
+        <NotificationsCard />
       </div>
 
       <!-- Error Alert -->
@@ -88,6 +99,17 @@ function resetApp() {
         </div>
 
         <FileUploader :loading="loading" @process="handleProcess" />
+
+        <!-- Atalho: ouvir o resumo das melhorias do servidor sem subir arquivo -->
+        <div class="max-w-3xl mx-auto mt-6 flex justify-center">
+          <button
+            @click="ouvirMelhorias"
+            class="flex items-center gap-2 text-sm font-semibold text-sky-300 hover:text-white bg-slate-900 border border-slate-800 hover:border-sky-600 px-4 py-2.5 rounded-xl transition-all"
+          >
+            <Sparkles class="w-4 h-4" />
+            <span>Ouvir as melhorias do servidor</span>
+          </button>
+        </div>
       </div>
 
       <!-- Result & Audio Player View -->

@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { api } from '../services/http';
 import {
   notifyCentralAtivo,
   notifyPublicKey,
@@ -9,14 +10,24 @@ import {
 /**
  * Ativacao de Web Push neste aparelho.
  *
- * DIFERENCA PARA OS OUTROS TRES APPS: o LBSTTSAPP nunca teve Web Push proprio —
- * nao ha tabela `push_subscriptions`, nem rota `/api/push/*`, nem par VAPID.
- * Aqui existe UM caminho so, o LBS Notify. Com `VITE_LBS_NOTIFY_URL` vazio o
- * composable se declara nao suportado e a UI nao oferece o botao, em vez de
- * oferecer algo que nao teria para onde registrar.
+ * DOIS CAMINHOS, COMO NOS OUTROS TRES APPS (desde 19/09/2026)
+ *
+ * Ate aqui o LBSTTSAPP tinha um caminho so, o LBS Notify — sem tabela
+ * `push_subscriptions`, sem rota `/api/v1/push/*` e sem par VAPID. O problema e
+ * que a central nunca entregou nada: as quatro flags `*_NOTIFY_USE_CENTRAL`
+ * estao em `false` e o banco `lbsnotify` tem zero linhas, porque falta a borda
+ * publica no tunel. Na pratica este era o unico app da suite sem notificacao
+ * nenhuma, e o composable se declarava `isSupported: false` para esconder isso.
+ *
+ * Agora vale a mesma regra dos outros: a central quando ligada, o caminho
+ * proprio quando nao. O app so se declara sem suporte quando o NAVEGADOR nao
+ * suporta — nunca por falta de configuracao nossa.
  */
 
+/** Chave do JWT do LoginHUB no localStorage — a mesma do `tokenKey` em http.ts. */
 const CHAVE_TOKEN = 'awl_token';
+
+const API_BASE = '/api/v1/push';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -29,13 +40,28 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+/**
+ * A inscricao foi criada com esta chave publica?
+ *
+ * `applicationServerKey` volta como ArrayBuffer cru; a comparacao e feita na
+ * forma base64url, que e como a chave chega da API.
+ */
+function mesmaChave(sub: PushSubscription, publicKey: string): boolean {
+  const bruto = sub.options?.applicationServerKey;
+  if (!bruto) return false;
+  const bytes = new Uint8Array(bruto as ArrayBuffer);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const atual = window.btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return atual === publicKey.replace(/=+$/, '');
+}
+
 export function usePush() {
   const isSupported =
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
-    'Notification' in window &&
-    notifyCentralAtivo;
+    'Notification' in window;
 
   const permission = ref<NotificationPermission | 'unsupported'>(
     isSupported ? Notification.permission : 'unsupported'
@@ -64,14 +90,28 @@ export function usePush() {
       const perm = await Notification.requestPermission();
       permission.value = perm;
       if (perm !== 'granted') {
-        error.value = 'Permissao de notificacao negada pelo navegador.';
+        error.value = 'Permissão de notificação negada pelo navegador.';
         return false;
       }
 
       const reg = await navigator.serviceWorker.ready;
-      const publicKey = await notifyPublicKey();
+
+      // A chave vem de quem VAI entregar. Assinar com a chave de um serviço e
+      // mandar pelo outro produz 403 no servidor de push do navegador.
+      const publicKey = notifyCentralAtivo
+        ? await notifyPublicKey()
+        : (await api.get<{ publicKey: string }>(`${API_BASE}/public-key`)).data.publicKey;
 
       let sub = await reg.pushManager.getSubscription();
+      // Uma inscrição existente pode ter sido criada com a chave do OUTRO
+      // caminho. Ela nunca passaria a receber, e o sintoma seria "ativei e não
+      // chega nada" — sem erro nenhum. Por isso a chave é conferida e a
+      // inscrição divergente é refeita.
+      if (sub && !mesmaChave(sub, publicKey)) {
+        await sub.unsubscribe().catch(() => {});
+        sub = null;
+      }
+
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
@@ -79,12 +119,17 @@ export function usePush() {
         });
       }
 
-      await notifyRegistrarWebPush(sub.toJSON(), CHAVE_TOKEN);
+      if (notifyCentralAtivo) await notifyRegistrarWebPush(sub.toJSON(), CHAVE_TOKEN);
+      else await api.post(`${API_BASE}/subscribe`, sub.toJSON());
+
       isSubscribed.value = true;
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao ativar push:', err);
-      error.value = 'Nao foi possivel ativar as notificacoes neste aparelho.';
+      error.value =
+        err?.response?.status === 503
+          ? 'Notificações não estão configuradas neste servidor.'
+          : 'Não foi possível ativar as notificações neste aparelho.';
       return false;
     } finally {
       isBusy.value = false;
@@ -98,7 +143,11 @@ export function usePush() {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        await notifyRemoverWebPush(sub.endpoint, CHAVE_TOKEN).catch(() => {});
+        if (notifyCentralAtivo) {
+          await notifyRemoverWebPush(sub.endpoint, CHAVE_TOKEN).catch(() => {});
+        } else {
+          await api.post(`${API_BASE}/unsubscribe`, { endpoint: sub.endpoint }).catch(() => {});
+        }
         await sub.unsubscribe();
       }
       isSubscribed.value = false;
