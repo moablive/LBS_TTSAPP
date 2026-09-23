@@ -55,6 +55,12 @@ def _int(*names: str, default: int) -> int:
 # ── Telegram ────────────────────────────────────────────────────────────────
 TOKEN = _env("TELEGRAM_BOT_TOKEN")
 
+# Meu Bruxo: com o segredo, quem escuta o Telegram e o hub (@MeuBruxoBot, no
+# painel); este bot recebe o update por HTTP na awl_network e responde com o
+# token acima, que passa a ser o do Meu Bruxo. Sem o segredo, volta ao polling.
+MEUBRUXO_SECRET = os.getenv("MEUBRUXO_GATEWAY_SECRET", "")
+MEUBRUXO_PORTA = int(os.getenv("MEUBRUXO_PORTA", "8090"))
+
 # ── Identidade central (LoginHUB) ───────────────────────────────────────────
 # API interna do proprio backend — e ele quem guarda o vinculo telegram->hub e
 # quem sabe a regra do passe de uso unico.

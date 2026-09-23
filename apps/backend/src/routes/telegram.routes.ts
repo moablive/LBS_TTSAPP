@@ -77,7 +77,8 @@ telegramRouter.post("/link-token", async (req, res) => {
   );
 
   res.json({
-    deepLink: `https://t.me/${bot}?start=${passe}`,
+    // Meu Bruxo: prefixo diz ao hub de que app e o passe (todos dividem o bot).
+    deepLink: `https://t.me/${bot}?start=${(process.env.TELEGRAM_START_PREFIX ?? "").replace(/[^a-z_]/g, "")}${passe}`,
     bot,
     expiresIn: TTL_MINUTOS * 60,
     expiraEm: expiraEm.toISOString(),

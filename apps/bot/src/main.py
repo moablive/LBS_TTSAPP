@@ -50,8 +50,12 @@ TELEGRAM_LIMIT = 4096
 BTN_LANG, BTN_VOICE, BTN_SPEED = "🌐 Idioma", "🗣 Voz", "⚡ Velocidade"
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text=BTN_LANG), KeyboardButton(text=BTN_VOICE), KeyboardButton(text=BTN_SPEED)]],
+    keyboard=[[KeyboardButton(text=BTN_LANG), KeyboardButton(text=BTN_VOICE), KeyboardButton(text=BTN_SPEED)]]
+    # O hub intercepta este texto e volta ao menu de modulos; aqui ele nunca chega.
+    + ([[KeyboardButton(text="🏠 Meu Bruxo")]] if config.MEUBRUXO_SECRET else []),
     resize_keyboard=True,
+    # Sempre aberto: nao recolhe quando se digita (pedido do usuario, 23/09/2026).
+    is_persistent=True,
 )
 
 
@@ -666,6 +670,36 @@ async def handle_caption(message: types.Message) -> None:
 
 
 # ── Boot ────────────────────────────────────────────────────────────────────
+async def receber_do_meubruxo() -> None:
+    """Recebe do hub Meu Bruxo os updates deste modulo, em vez de fazer polling.
+
+    Responde 204 na hora e processa em seguida: o hub nao espera a leitura de um
+    documento inteiro. O segredo e o MEUBRUXO_GATEWAY_SECRET do ../shared.env.
+    """
+    import hmac
+
+    from aiohttp import web
+
+    pendentes: set = set()  # referencia forte: task solta pode ser coletada no meio
+
+    async def update(request: web.Request) -> web.Response:
+        if not hmac.compare_digest(request.headers.get("x-meubruxo-secret", ""), config.MEUBRUXO_SECRET):
+            return web.Response(status=401)
+        dados = await request.json()
+        task = asyncio.create_task(dp.feed_raw_update(bot, dados))
+        pendentes.add(task)
+        task.add_done_callback(pendentes.discard)
+        return web.Response(status=204)
+
+    app = web.Application(client_max_size=1_000_000)
+    app.router.add_post("/update", update)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", config.MEUBRUXO_PORTA).start()
+    logger.info("recebendo do Meu Bruxo na porta %s", config.MEUBRUXO_PORTA)
+    await asyncio.Event().wait()
+
+
 async def main() -> None:
     config.TMP_DIR.mkdir(parents=True, exist_ok=True)
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -678,6 +712,9 @@ async def main() -> None:
         config.DEFAULT_TARGET_LANG,
     )
 
+    if config.MEUBRUXO_SECRET:
+        # Sem set_my_commands: a lista do "/" e do hub, que e dono do token.
+        return await receber_do_meubruxo()
     await bot.set_my_commands([
         BotCommand(command="start", description="Iniciar"),
         BotCommand(command="idioma", description="Idioma-alvo da tradução"),
