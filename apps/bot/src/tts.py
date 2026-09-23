@@ -1,7 +1,7 @@
 """
 Síntese de voz via edge-tts (vozes neurais da Microsoft, grátis, sem API key).
 
-O split_text é o mesmo do MailAPP/apps/tts-service — texto longo em uma única
+O split_text existe porque texto longo em uma única
 chamada estoura o edge-tts, e blocos puramente decorativos ("-----") fazem ele
 responder "No audio was received" e derrubar a requisição inteira.
 """

@@ -220,7 +220,7 @@ nova para dentro do bundle do front.
 
 ## Decisões de Arquitetura
 
-- **Por que edge-tts embutido no Backend e Bot?** A suite possui o `MailAPP/apps/tts-service`, porém este app requer controle fino da taxa de leitura (`rate`). Para não afetar outros serviços, adotou-se implementações independentes em Python (Bot) e Node.js (Backend).
+- **Por que edge-tts embutido no Backend e Bot?** Este app precisa de controle fino da taxa de leitura (`rate`), então tem implementações próprias em Python (Bot) e Node.js (Backend) em vez de um serviço de TTS compartilhado.
 - **Tradução em lote**: PDFs são divididos em blocos com marcadores `<<<n>>>` para evitar múltiplas viagens individuais ao LLM, agilizando drasticamente o tempo total da tradução de textos longos.
 - **Leitura de PDFs**: Utiliza-se `pdf-parse` (Node) e `pypdf` (Python) para ler camadas de texto direto do arquivo, sendo mais rápido do que rastreio por OCR. Páginas sem camada de texto (escaneadas) exigem envio como imagem (foto) para processamento OCR preciso.
 
@@ -234,18 +234,8 @@ Este app entrega Web Push por conta própria: par VAPID no `.env`, tabela
 ela é de outro par — sem isso o sintoma seria "ativei e não chega nada", sem
 erro nenhum.
 
-### Sobre o LBS Notify (histórico)
-
-A plataforma **central** de push da suíte foi **descontinuada em 19/09/2026**.
-Ela foi construída, publicada e nunca entregou um único aviso: o rollout
-dependia de um hostname público no túnel Cloudflare que nunca existiu, então as
-flags ficaram em `false` e o banco `lbsnotify` terminou com zero linhas.
-
-Containers derrubados, submódulo removido e repositório apagado do GitHub. As
-variáveis `LBS_NOTIFY_URL`, `LBS_NOTIFY_KEY`, `<APP>_NOTIFY_USE_CENTRAL` e
-`VITE_LBS_NOTIFY_URL` saíram do `.env` e do `shared.env`.
-
-O código está preservado em `/root/recuperado/LBS_NotifyAPP-20260919.bundle`.
+> Não existe central de push na suíte: o antigo LBS Notify foi descontinuado
+> em 19/09/2026. Cada app envia o próprio Web Push.
 
 > **Este app não tinha push próprio até 19/09/2026.** Ele dependia só da
 > central, então era o único da suíte incapaz de avisar o usuário — e o
