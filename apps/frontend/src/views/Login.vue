@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoogleAuthAviso from '../components/GoogleAuthAviso.vue';
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import TwoFactorEnroll from '../components/TwoFactorEnroll.vue';
@@ -149,6 +150,7 @@ async function handleSegundoFator() {
             ? 'Digite um dos códigos de recuperação que você guardou.'
             : 'Digite o código de 6 dígitos do seu aplicativo autenticador.' }}
         </p>
+        <GoogleAuthAviso v-if="!usarBackup" modo="codigo" emissor="LBSTTSAPP" class="mt-4 text-white" />
 
         <input
           v-model="codigo"
